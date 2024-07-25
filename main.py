@@ -138,6 +138,16 @@ def segment_video(
     else:
         pb = frames
 
+    # 첫 번째 프레임에서 객체 탐지 수행
+    first_frame_file = dir_frames + "/" + frames[0]
+    first_frame_pil = Image.open(first_frame_file)
+    first_frame_np = np.array(first_frame_pil)
+    if not auto_detect:
+        bboxes = get_bboxes(first_frame_file, first_frame_pil, model, image_processor)
+        input_box = get_closest_bbox(bboxes, bbox_orig)
+    else:
+        input_box = [0, 0, first_frame_np.shape[1], first_frame_np.shape[0]]
+
     processed_frames = 0
     init_time = time.time()
     for frame in pb:
@@ -145,12 +155,8 @@ def segment_video(
         image_file = dir_frames + "/" + frame
         image_pil = Image.open(image_file)
         image_np = np.array(image_pil)
-        if not auto_detect:
-            bboxes = get_bboxes(image_file, image_pil, model, image_processor)
-            closest_bbox = get_closest_bbox(bboxes, bbox_orig)
-            input_box = np.array(closest_bbox)
-        else:
-            input_box = np.array([0, 0, image_np.shape[1], image_np.shape[0]])
+        
+        # 첫 번째 프레임에서 얻은 경계 상자 사용
         predictor.set_image(image_np)
         masks, _, _ = predictor.predict(
             point_coords=None,
@@ -197,6 +203,7 @@ def segment_video(
         )
     vid_creator = VideoCreator(output_dir, output_video, pbar=pbar)
     vid_creator.create_video(fps=int(fps))
+
 
 
 if __name__ == "__main__":
